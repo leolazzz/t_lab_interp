@@ -96,7 +96,7 @@ from huggingface_hub import hf_hub_download
 from src.train_v3 import load_v3_checkpoint
 
 checkpoint_path = hf_hub_download(
-    repo_id="leolazz/steering-denoiser-gpt2-small",
+    repo_id="leolaz/steering-denoiser-gpt2",
     filename="conditioned_kl_retention.pt",
 )
 denoiser, checkpoint = load_v3_checkpoint(checkpoint_path, device="cuda")

@@ -176,8 +176,10 @@ The paper-selected checkpoint is:
 outputs/final_v3/checkpoints/conditioned_kl_retention.pt
 ```
 
-It is intentionally not committed to Git. Publish it in a separate public
-Hugging Face model repository as described in `MODEL_CARD.md`.
+It is intentionally not committed to Git. The public checkpoint is hosted at
+[`leolaz/steering-denoiser-gpt2`](https://huggingface.co/leolaz/steering-denoiser-gpt2)
+as `conditioned_kl_retention.pt`. Loading instructions and the model's scope are
+documented in `MODEL_CARD.md`.
 
 ## Local validation
 
