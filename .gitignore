@@ -1,0 +1,35 @@
+# Large runtime artifacts and local experiment state
+/outputs/
+/tmp/
+/logs.txt
+/tlab-mech.ipynb
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# LaTeX build products (the release PDF is paper/paper.pdf)
+/paper/main.aux
+/paper/main.bbl
+/paper/main.blg
+/paper/main.log
+/paper/main.out
+/paper/main.pdf
+/paper/_minted-*/
+/paper/figures/*.png
+
+# Editors and operating systems
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

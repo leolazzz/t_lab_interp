@@ -1,0 +1,12 @@
+torch
+transformer-lens
+sae-lens
+transformers
+datasets
+numpy
+pandas
+scikit-learn
+matplotlib
+pyyaml
+tqdm
+
