@@ -1,0 +1,442 @@
+seed: 42
+pipeline_version: final_v2
+
+reproducibility:
+  deterministic_algorithms: false
+
+model:
+  name: gpt2-small
+  device: cuda
+  dtype: float32
+  hook_name: blocks.6.hook_resid_pre
+
+data:
+  dataset_name: openwebtext
+  split: train
+  text_column: text
+  max_length: 256
+  activation_batch_size: 8
+  # Full experiment bank: token-level residual activations, not documents.
+  # Keep debug.target_num_activations small for quick smoke tests.
+  target_num_activations: 200000
+  activation_shard_size: 25000
+  activation_storage_dtype: float16
+  activation_output_dir: outputs/activations
+
+sae:
+  # Exact match for the layer-6 resid_pre intervention in src/model.py.
+  release: gpt2-small-res-jb
+  sae_id: blocks.6.hook_resid_pre
+  device: cuda
+  dtype: float32
+
+directions:
+  source: sae_decoder
+  split_path: outputs/direction_split.json
+  num_train: 100
+  num_validation: 20
+  num_test: 20
+
+steering:
+  # Relative update: strength * ||h|| * unit(direction).
+  alphas: [0.0, 0.1, 0.25, 0.5, 1.0, 2.0]
+  # V2 names the two distinct units explicitly. literal_alphas are calibrated
+  # from median ||h|| before evaluation and persisted in V2 metadata.
+  relative_strengths: [0.0, 0.1, 0.25, 0.5, 1.0, 2.0]
+  literal_calibration_strengths: [0.0, 0.1, 0.25, 0.5, 1.0, 2.0]
+
+damage_score:
+  batch_size: 16
+  max_contexts: 32
+  relative_strengths: [0.25, 0.5]
+  direction_batch_size: 4
+  output_path: outputs/direction_scores/train_scores.pt
+  csv_path: outputs/direction_scores/train_scores.csv
+  histogram_path: outputs/figures/train_direction_kl_hist.png
+
+natural_neighbors:
+  n_components: 64
+  k: 10
+  max_fit_samples: 20000
+  index_path: outputs/activations/natural_neighbor_index.pkl
+
+denoiser:
+  hidden_dim: 768
+  condition_on_noise: true
+  conditioning_hidden_dim: 64
+
+noise:
+  gaussian_sigma_min: 0.0
+  gaussian_sigma_max: 2.0
+  gaussian_sigma_distribution: uniform
+  sae_relative_magnitude_min: 0.1
+  sae_relative_magnitude_max: 1.0
+  structured_sae_probability: 0.85
+  structured_gaussian_probability: 0.15
+  calibrated_magnitude_min: 3.8
+  calibrated_magnitude_max: 19.1
+  calibrated_gaussian_probability: 0.15
+  fluency_direction_sampling_mode: score_proportional
+  score_gamma: 0.5
+  score_eps: 0.00000001
+  score_clip_quantile: 0.99
+  fluency_weighted_sae_probability: 0.60
+  fluency_uniform_sae_probability: 0.25
+  fluency_gaussian_probability: 0.15
+
+training:
+  batch_size: 64
+  learning_rate: 0.0001
+  weight_decay: 0.0
+  num_epochs: 10
+  max_steps: 3000
+  num_workers: 0
+  persistent_workers: false
+  checkpoint_every: 1
+  gradient_clip_norm: 1.0
+  clean_identity_probability: 0.1
+  validation_fraction: 0.1
+  max_validation_batches: 20
+  log_every: 50
+  normalization_eps: 0.000001
+  math_assert_every: 250
+  normalization_stats_path: outputs/activations/stats.pt
+  checkpoint_path: outputs/checkpoints/gaussian.pt
+  checkpoint_paths:
+    gaussian: outputs/checkpoints/gaussian.pt
+    sae: outputs/checkpoints/sae.pt
+    sae_calibrated: outputs/checkpoints/sae_calibrated.pt
+    fluency: outputs/checkpoints/fluency.pt
+
+evaluation:
+  # Token-level KL/NLL steers all valid prediction positions. Autoregressive
+  # generation steers only the final position on each forward pass.
+  token_evaluation_positions: all_tokens
+  generation_positions: final_token_only
+  max_new_tokens: 50
+  num_prompts: 32
+  num_validation_directions: 4
+  token_eval_prompt_batch_size: 16
+  intervention_batch_size: 8
+  use_inference_autocast: true
+  quick_num_prompts: 8
+  quick_strengths: [0.25, 0.5, 1.0]
+  full_strengths: [0.0, 0.1, 0.25, 0.5, 1.0, 2.0]
+  projected_beta_candidates: [0.25, 0.5, 0.75, 1.0]
+  incremental_step_candidates: [1, 2, 4]
+  generation_num_prompts: 8
+  generation_seeds: [0]
+  final_generation_num_prompts: 16
+  final_generation_seeds: [0, 1]
+  temperature: 1.0
+  top_k: 50
+  do_sample: true
+  seeds: [0, 1, 2]
+  incremental_steps: 4
+  incremental_projected: false
+  projected_beta: 1.0
+  concept_threshold: 0.0
+  repetition_ngram: 3
+  generation_jsonl_path: outputs/generations/final_eval.jsonl
+  results_path: outputs/results/results.csv
+  aggregate_results_path: outputs/results/aggregate_results.csv
+  methods:
+    - raw
+    - norm_preserving
+    - gaussian_denoiser
+    - sae_calibrated
+    - fluency_denoiser
+    - projected_fluency_denoiser
+    - incremental_fluency
+  generation_methods:
+    - raw
+    - gaussian_denoiser
+    - sae_calibrated
+    - fluency_denoiser
+    - projected_fluency_denoiser
+
+semantic_evaluation:
+  enabled: false
+  classifier_name: typeform/distilbert-base-uncased-mnli
+  classifier_batch_size: 32
+  primary_feature_id: 6516
+  fallback_feature_ids: [9696, 7672]
+  negative_control_feature_ids: [9696, 7672]
+  strengths: [0.0, 0.1, 0.25, 0.5, 1.0, 2.0]
+  methods:
+    - raw
+    - gaussian_denoiser
+    - sae_calibrated
+    - fluency_denoiser
+    - projected_fluency_denoiser
+  seed: 0
+  max_new_tokens: 40
+  temperature: 1.0
+  top_k: 50
+  do_sample: true
+  classifier_max_length: 512
+  output_dir: outputs/semantic_eval
+  figure_dir: outputs/final_figures
+
+conditioned_v2:
+  pipeline_version: conditioned_v2_v1
+  quick: true
+  run_test: false
+  hidden_dim: 768
+  conditioning_dim: 128
+  retention_target: 0.8
+  retention_mask_threshold: 0.001
+  retention_eps: 0.000001
+  identity_mse_eta: 0.01
+  lambda_fluency: 1.0
+  lambda_retain: 1.0
+  lambda_identity: 0.5
+  lambda_correction: 0.01
+  lambda_reconstruction: 0.05
+  training_strengths: [0.1, 0.25, 0.5, 1.0, 2.0]
+  validation_strengths: [0.0, 0.1, 0.25, 0.5, 1.0, 2.0]
+  batch_size: 4
+  num_training_texts: 128
+  num_validation_texts: 32
+  max_sequence_length: 128
+  learning_rate: 0.0001
+  weight_decay: 0.0
+  max_steps: 1000
+  validation_every: 100
+  gradient_clip_norm: 1.0
+  log_every: 10
+  loss_scale_diagnostic_batches: 30
+  max_validation_batches: 8
+  num_validation_directions: 4
+  identity_examples_per_batch: true
+  objective_mode: full
+  output_dir: outputs/conditioned_v2
+  best_checkpoint_path: outputs/checkpoints/conditioned_v2_best.pt
+  last_checkpoint_path: outputs/checkpoints/conditioned_v2_last.pt
+  frozen_test_config_path: outputs/frozen_test_config_v2.json
+  validation_results_path: outputs/conditioned_v2/validation_results.csv
+  validation_aggregate_path: outputs/conditioned_v2/validation_aggregate.csv
+  quick_overrides:
+    max_steps: 10
+    validation_every: 5
+    loss_scale_diagnostic_batches: 3
+    max_validation_batches: 1
+    num_validation_directions: 1
+    num_training_texts: 8
+    num_validation_texts: 4
+    max_sequence_length: 64
+
+final_v3:
+  pipeline_version: final_v3
+  primary_question: "Does intervention-aware D(x,v,s) improve over unconditional reconstruction D(x) while preserving the intended steering signal?"
+  output_dir: outputs/final_v3
+  strengths: [0.0, 0.1, 0.25, 0.5, 1.0, 2.0]
+  retention_target: 0.8
+  retention_mask_threshold: 0.001
+  retention_eps: 0.000001
+  new_split_seed: 314159
+  num_validation_directions: 20
+  num_holdout_directions: 20
+  excluded_external_feature_ids: [6516, 9696, 7672]
+  holdout_label: new_unseen_v3_holdout
+  architecture:
+    d_model: 768
+    hidden_dim: 768
+    conditioning_dim: 128
+    gate_scale: 0.25
+    structural_identity: true
+  training:
+    seed: 42
+    batch_size: 4
+    num_training_texts: 128
+    num_validation_texts: 32
+    num_holdout_texts: 32
+    max_sequence_length: 128
+    max_steps: 1000
+    learning_rate: 0.0001
+    weight_decay: 0.0
+    gradient_clip_norm: 1.0
+    log_every: 25
+    loss_scale_batches: 30
+    training_strengths: [0.1, 0.25, 0.5, 1.0, 2.0]
+    num_workers: 0
+  ablations:
+    - conditioned_reconstruction
+    - conditioned_kl
+    - conditioned_kl_retention
+    - conditioned_full
+  ablation_weights:
+    conditioned_reconstruction: {kl: 0.0, retention: 0.0, reconstruction: 1.0, correction: 0.01}
+    conditioned_kl: {kl: 1.0, retention: 0.0, reconstruction: 0.0, correction: 0.01}
+    conditioned_kl_retention: {kl: 1.0, retention: 1.0, reconstruction: 0.0, correction: 0.01}
+    conditioned_full: {kl: 1.0, retention: 1.0, reconstruction: 0.05, correction: 0.01}
+  selection_rule: "Among validation-feasible conditioned models with mean valid retention >= 0.8, minimize mean delta NLL; ties use mean KL. If none is feasible, select highest retention then delta NLL and label the selection infeasible."
+  prompt_split:
+    source: openwebtext_stream
+    stream_skip_examples: 20000
+    train_prefix_count: 128
+    validation_following_count: 32
+    holdout_prompts: fixed_generation_prompts_only
+    overlap_forbidden: true
+  token_evaluation:
+    max_validation_batches: 8
+    max_holdout_batches: 8
+    bootstrap_samples: 2000
+    methods:
+      - relative_raw
+      - literal_raw
+      - norm_preserving
+      - gaussian_denoiser
+      - sae_calibrated
+      - fluency_denoiser
+      - conditioned_reconstruction
+      - conditioned_kl
+      - conditioned_kl_retention
+      - conditioned_full
+      - hard_projected_conditioned_kl_retention
+  neighbor_diagnostics:
+    enabled: true
+    num_directions: 4
+    max_batches: 1
+    methods: [relative_raw, sae_calibrated, conditioned_full]
+  cross_concept:
+    enabled: true
+    family: sentiment_contrastive_residual
+    direction_id: sentiment_contrast_v1
+    positive_examples:
+      - "I loved this film; it was moving and beautifully made."
+      - "The experience was wonderful, joyful, and deeply satisfying."
+      - "This is excellent news and I feel genuinely optimistic."
+      - "The book was delightful and exceeded all my expectations."
+      - "Everything worked perfectly and the result made me happy."
+      - "The performance was brilliant, warm, and inspiring."
+    negative_examples:
+      - "I hated this film; it was tedious and badly made."
+      - "The experience was awful, miserable, and deeply disappointing."
+      - "This is terrible news and I feel genuinely pessimistic."
+      - "The book was dreadful and failed all my expectations."
+      - "Everything went badly and the result made me unhappy."
+      - "The performance was dreadful, cold, and discouraging."
+    evaluation_prompts:
+      - "The reviewer considered the new release and wrote"
+      - "After using the product for a week, the customer said"
+      - "The audience left the theater feeling"
+      - "Looking back on the entire experience, I think"
+      - "The report described the outcome as"
+      - "When asked for an honest opinion, she replied"
+      - "The final result made everyone feel"
+      - "In a short review of the event, he wrote"
+    positive_logit_tokens: [" good", " great", " happy", " excellent"]
+    negative_logit_tokens: [" bad", " terrible", " sad", " awful"]
+    methods:
+      - relative_raw
+      - sae_calibrated
+      - conditioned_reconstruction
+      - conditioned_kl
+      - conditioned_kl_retention
+      - conditioned_full
+      - hard_projected_conditioned_kl_retention
+    max_sequence_length: 96
+  generation:
+    methods:
+      - relative_raw
+      - sae_calibrated
+      - conditioned_reconstruction
+      - conditioned_kl
+      - conditioned_kl_retention
+    num_directions: 4
+    num_prompts: 8
+    seeds: [0]
+    max_new_tokens: 40
+    temperature: 1.0
+    top_k: 50
+    do_sample: true
+    generation_positions: final_token_only
+    repetition_ngram: 3
+    concept_threshold: 0.0
+  checkpoints:
+    conditioned_reconstruction: outputs/final_v3/checkpoints/conditioned_reconstruction.pt
+    conditioned_kl: outputs/final_v3/checkpoints/conditioned_kl.pt
+    conditioned_kl_retention: outputs/final_v3/checkpoints/conditioned_kl_retention.pt
+    conditioned_full: outputs/final_v3/checkpoints/conditioned_full.pt
+  debug_overrides:
+    num_validation_directions: 2
+    num_holdout_directions: 2
+    training:
+      num_training_texts: 8
+      num_validation_texts: 4
+      num_holdout_texts: 4
+      max_sequence_length: 64
+      max_steps: 5
+      loss_scale_batches: 2
+    token_evaluation:
+      max_validation_batches: 1
+      max_holdout_batches: 1
+      bootstrap_samples: 100
+
+debug:
+  enabled: false
+  overrides:
+    data:
+      max_length: 64
+      activation_batch_size: 2
+      target_num_activations: 5000
+      activation_shard_size: 1000
+      activation_output_dir: outputs/debug/activations
+    directions:
+      num_train: 8
+      num_validation: 4
+      num_test: 4
+      split_path: outputs/debug/direction_split.json
+    steering:
+      alphas: [0.0, 0.5]
+    damage_score:
+      batch_size: 2
+      max_contexts: 8
+      relative_strengths: [0.5]
+      direction_batch_size: 2
+      output_path: outputs/debug/direction_scores/train_scores.pt
+      csv_path: outputs/debug/direction_scores/train_scores.csv
+      histogram_path: outputs/debug/figures/train_direction_kl_hist.png
+    natural_neighbors:
+      n_components: 8
+      k: 3
+      max_fit_samples: 256
+      index_path: outputs/debug/activations/natural_neighbor_index.pkl
+    denoiser:
+      hidden_dim: 64
+      conditioning_hidden_dim: 16
+    training:
+      batch_size: 64
+      max_steps: 100
+      num_workers: 0
+      persistent_workers: false
+      num_epochs: 2
+      max_validation_batches: 1
+      log_every: 20
+      normalization_stats_path: outputs/debug/activations/stats.pt
+      checkpoint_path: outputs/debug/checkpoints/gaussian.pt
+      checkpoint_paths:
+        gaussian: outputs/debug/checkpoints/gaussian.pt
+        sae: outputs/debug/checkpoints/sae.pt
+        sae_calibrated: outputs/debug/checkpoints/sae_calibrated.pt
+        fluency: outputs/debug/checkpoints/fluency.pt
+    evaluation:
+      num_prompts: 2
+      num_validation_directions: 2
+      token_eval_prompt_batch_size: 2
+      intervention_batch_size: 2
+      use_inference_autocast: false
+      quick_num_prompts: 2
+      quick_strengths: [0.5]
+      full_strengths: [0.0, 0.5]
+      generation_num_prompts: 2
+      generation_seeds: [0]
+      final_generation_num_prompts: 2
+      final_generation_seeds: [0]
+      max_new_tokens: 8
+      seeds: [0]
+      incremental_steps: 2
+      generation_jsonl_path: outputs/debug/generations/eval.jsonl
+      results_path: outputs/debug/results/results.csv
+      aggregate_results_path: outputs/debug/results/aggregate_results.csv

@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+message: "If you use this code or its results, please cite the accompanying paper."
+title: "Repairing Activation Steering with Downstream-Aware Denoising"
+type: software
+authors:
+  - name: leolazz
+version: 1.0.0
+date-released: 2026-08-23
+repository-code: "https://github.com/leolazz/steering-denoiser"
