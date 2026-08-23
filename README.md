@@ -9,6 +9,8 @@ intervention-aware denoiser, `D(x, v, s)`, optimized through the frozen downstre
 transformer.
 
 The complete paper is available at [`paper/paper.pdf`](paper/paper.pdf).
+Exact from-scratch Kaggle instructions, expected artifacts, and numerical
+verification checks are in [REPRODUCING.md](REPRODUCING.md).
 
 ## Main result
 
@@ -109,10 +111,12 @@ The canonical entry point is
 It runs the full pipeline from clean activation caching through training, frozen
 holdout evaluation, semantic confirmation, figures, and final reports.
 
+For the exact paper-scale flags, expected runtime, stage-by-stage gates, and a
+post-run verification cell, follow [REPRODUCING.md](REPRODUCING.md).
+
 ### Option A: import from GitHub
 
-1. Push this directory to the public GitHub repository `leolazzz/t_lab_interp`.
-   directory.
+1. Open the public GitHub repository `leolazzz/t_lab_interp`.
 2. In Kaggle, create a notebook with one T4 GPU and Internet enabled.
 3. Import `notebooks/final_v3_all_experiments.ipynb` from GitHub.
 4. Run all cells. The bootstrap uses the current checkout when present and otherwise
