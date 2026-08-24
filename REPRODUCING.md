@@ -153,6 +153,8 @@ Copies of `final_report.md` and `final_summary.json` are also placed under
 
 The primary result table is
 `outputs/final_v3/results/causal_ablation_table.csv`.
+Compact frozen copies of the main released tables are committed under
+[`released_results/`](released_results/README.md) for inspection without a rerun.
 
 The paper-selected checkpoint is
 `outputs/final_v3/checkpoints/conditioned_kl_retention.pt`. It includes the

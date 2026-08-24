@@ -1,0 +1,5 @@
+method,mean_delta_nll,mean_kl,mean_retention,feasible,selection_status,selected
+conditioned_full,2.092628888785839,2.1498040299257264,1.1524996842905935,True,retention_feasible,False
+conditioned_kl,2.068376488983631,2.1250580891361457,1.010861772851258,True,retention_feasible,False
+conditioned_kl_retention,2.0626109179109333,2.11966943268897,1.1154797035991586,True,retention_feasible,True
+conditioned_reconstruction,6.905517786890269,6.942377738456708,1.161900195379903,True,retention_feasible,False

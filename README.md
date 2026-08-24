@@ -91,6 +91,7 @@ Earlier prefix positions are not repeatedly steered.
 │   ├── semantic_eval.py                # independent output-level semantic proxy
 │   └── utils.py                        # config, seeds, normalization, and audit helpers
 ├── tests/                              # CPU-friendly unit and orchestration tests
+├── released_results/                   # compact frozen tables from the paper run
 ├── paper/
 │   ├── main.tex
 │   ├── references.bib
@@ -184,6 +185,14 @@ It is intentionally not committed to Git. The public checkpoint is hosted at
 [`leolaz/steering-denoiser-gpt2`](https://huggingface.co/leolaz/steering-denoiser-gpt2)
 as `conditioned_kl_retention.pt`. Loading instructions and the model's scope are
 documented in `MODEL_CARD.md`.
+
+## Released result tables
+
+The main compact CSV tables from the successful full run are committed under
+[`released_results/`](released_results/README.md). This includes the causal
+ablation, frozen holdout uncertainty, cross-concept statistics, semantic and
+generation aggregates, model-selection record, and runtime breakdown. Large raw
+token-level outputs and checkpoints remain excluded from Git.
 
 ## Local validation
 

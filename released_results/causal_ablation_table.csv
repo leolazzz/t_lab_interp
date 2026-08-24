@@ -1,0 +1,6 @@
+method,ablation_label,uses_conditioning,uses_downstream_kl,uses_retention_constraint,uses_reconstruction,isolated_increment,mean_delta_nll,mean_kl,mean_concept_retention,fraction_violating_80
+relative_raw,raw,False,False,False,False,reference,7.01033927731216,7.047666940640193,1.0,0.0
+sae_calibrated,unconditional reconstruction D(x),False,False,False,True,unconditional repair,6.201734721213579,6.2450037533068095,1.241632513915528,0.0
+conditioned_reconstruction,"conditioned reconstruction D(x,v,s)",True,False,False,True,conditioning contribution,6.905517786890269,6.942377738456708,1.161900195379903,0.0
+conditioned_kl,"conditioned KL D(x,v,s)",True,True,False,False,downstream KL contribution,2.068376488983631,2.1250580891361457,1.0108617728512577,0.00125
+conditioned_kl_retention,conditioned KL + retention,True,True,True,False,retention contribution,2.0626109179109333,2.11966943268897,1.1154797035991586,0.0
